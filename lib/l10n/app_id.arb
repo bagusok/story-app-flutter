@@ -1,0 +1,17 @@
+{
+  "titleApp": "CeritaKu",
+  "@titleApp": {
+    "description": "Deskripsi mengenai variabel titleApp"
+  },
+ "login": "Masuk",
+ "email": "Surel",
+ "password": "Sandi",
+ "dontHaveAccount": "Belum punya akun?",
+ "haveAccount": "Punya akun?",
+ "register": "Daftar",
+ "name": "Nama",
+ "home": "Beranda",
+ "logout": "Keluar",
+ "writeDescriptionHere": "Tulis Deskripsi Disini",
+ "addStory": "Tambah Cerita"
+}

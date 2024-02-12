@@ -1,0 +1,17 @@
+{
+  "titleApp": "MyStory",
+  "@titleApp": {
+    "description": "This is Description"
+  },
+ "login": "Login",
+ "email": "Email",
+ "password": "Password",
+ "dontHaveAccount": "Dont have and account?",
+ "haveAccount": "Have an sccount?",
+ "register": "Register",
+ "name": "Name",
+ "home": "Home",
+ "logout": "Logout",
+ "writeDescriptionHere": "Write descriptipon here..",
+ "addStory": "Add Story"
+}
