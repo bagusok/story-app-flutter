@@ -13,5 +13,12 @@
  "home": "Beranda",
  "logout": "Keluar",
  "writeDescriptionHere": "Tulis Deskripsi Disini",
- "addStory": "Tambah Cerita"
+ "addStory": "Tambah Cerita",
+ "enableLocation":"Aktifkan Lokasi",
+ "selectLocation":"Pilih Lokasi",
+ "yourLocation":"Lokasimu",
+ "withLocation":"Dengan Lokasi",
+ "noLocation":"Tanpa Lokasi",
+ "pickFromMap": "Pilih dari map",
+ "viewLocation" : "Lihat Lokasi"
 }

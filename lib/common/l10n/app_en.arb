@@ -13,5 +13,12 @@
  "home": "Home",
  "logout": "Logout",
  "writeDescriptionHere": "Write descriptipon here..",
- "addStory": "Add Story"
+ "addStory": "Add Story",
+ "enableLocation":"Enable Location",
+ "selectLocation":"Select Location",
+ "yourLocation":"Your Location",
+ "withLocation":"With Location",
+ "noLocation":"No Location",
+ "pickFromMap": "Pick from map",
+"viewLocation" : "View Location"
 }
