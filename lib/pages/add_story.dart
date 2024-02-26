@@ -3,10 +3,14 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:story_app/common/constant.dart';
+import 'package:story_app/common/flavor_config.dart';
+import 'package:story_app/providers/location_provider.dart';
 import 'package:story_app/providers/story_provider.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 
@@ -22,7 +26,11 @@ class _AddStoryPageState extends ConsumerState<AddStoryPage> {
   XFile? _image;
 
   final TextEditingController _descriptionController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
   bool _isLoading = false;
+
+  bool isLocationEnabled = false;
+  late LatLng latLong;
 
   Future getImageGallery() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
@@ -40,6 +48,43 @@ class _AddStoryPageState extends ConsumerState<AddStoryPage> {
     });
   }
 
+  void _onLocationChanged(bool value) {
+    setState(() {
+      isLocationEnabled = value;
+    });
+
+    if (value) {
+      onMyLocationButtonPress();
+      _locationController.text = ref.read(locationProvider).address;
+    }
+  }
+
+  void onMyLocationButtonPress() async {
+    late bool serviceEnabled;
+    late LocationPermission permissionGranted;
+    late Position position;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      serviceEnabled = await Geolocator.openLocationSettings();
+    }
+
+    permissionGranted = await Geolocator.checkPermission();
+    if (permissionGranted == LocationPermission.denied) {
+      permissionGranted = await Geolocator.requestPermission();
+      if (permissionGranted != LocationPermission.whileInUse) {
+        return;
+      }
+    }
+
+    position = await Geolocator.getCurrentPosition();
+
+    ref.watch(locationProvider).setLatLong(
+          position.latitude,
+          position.longitude,
+        );
+  }
+
   Future addStory() async {
     if (_image == null || _descriptionController.text.isEmpty) {
       return ScaffoldMessenger.of(context).showSnackBar(
@@ -53,24 +98,37 @@ class _AddStoryPageState extends ConsumerState<AddStoryPage> {
       _isLoading = true;
     });
 
-    final data = FormData.fromMap({
-      "description": _descriptionController.text,
-      "photo": await MultipartFile.fromFile(_image!.path),
-    });
+    final data = isLocationEnabled
+        ? FormData.fromMap({
+            'description': _descriptionController.text,
+            'photo': await MultipartFile.fromFile(_image!.path),
+            'lat': ref.watch(locationProvider).lat.toString(),
+            'lon': ref.watch(locationProvider).long.toString(),
+          })
+        : FormData.fromMap({
+            'description': _descriptionController.text,
+            'photo': await MultipartFile.fromFile(_image!.path),
+          });
 
     final dio = Dio();
     final sharedPreferences = await SharedPreferences.getInstance();
     final token = sharedPreferences.getString('token');
 
     try {
-      await dio.post('$base_url/stories',
+      await dio.post('$baseUrl/stories',
           data: data,
-          options: Options(headers: {
-            'Authorization': "Bearer $token",
-            'Content-Type': 'multipart/form-data',
-          }));
+          options: Options(
+            headers: {
+              'Authorization': "Bearer $token",
+              'Content-Type': 'multipart/form-data',
+            },
+          ));
 
-      ref.read(storyProvider).getAllStory();
+      if (FlavorConfig.instance.flavor == FlavorType.free ||
+          !isLocationEnabled) {
+        ref.read(storyProvider).setUseLocation = false;
+      }
+      ref.read(storyProvider).getAllStory(reset: true);
       // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -79,7 +137,6 @@ class _AddStoryPageState extends ConsumerState<AddStoryPage> {
         ),
       );
 
-      // ignore: use_build_context_synchronously
       ref.context.pop();
 
       setState(() {
@@ -104,11 +161,15 @@ class _AddStoryPageState extends ConsumerState<AddStoryPage> {
   @override
   void dispose() {
     _descriptionController.dispose();
+    _locationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final locationRef = ref.watch(locationProvider);
+    _locationController.text = locationRef.address;
+
     return Scaffold(
       appBar: AppBar(
         title: Center(
@@ -217,19 +278,72 @@ class _AddStoryPageState extends ConsumerState<AddStoryPage> {
                     ),
                   )),
               const SizedBox(height: 16),
+              FlavorConfig.instance.flavor == FlavorType.paid
+                  ? Text(
+                      AppLocalizations.of(context)!.enableLocation,
+                      style: const TextStyle(
+                          fontSize: 14, fontWeight: FontWeight.bold),
+                    )
+                  : const SizedBox(),
+              FlavorConfig.instance.flavor == FlavorType.paid
+                  ? Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        children: [
+                          Switch(
+                              value: isLocationEnabled,
+                              onChanged: _onLocationChanged),
+                          const Spacer(),
+                          isLocationEnabled && locationRef.lat.isNotEmpty
+                              ? TextButton(
+                                  onPressed: () => context.push(
+                                      "/location-picker/${locationRef.lat}/${locationRef.long}"),
+                                  child: Text(
+                                    AppLocalizations.of(context)!.pickFromMap,
+                                  ))
+                              : const SizedBox(),
+                        ],
+                      ),
+                    )
+                  : const SizedBox(),
+              const SizedBox(height: 16),
+              locationRef.address.isNotEmpty && isLocationEnabled
+                  ? Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: TextField(
+                        controller: _locationController,
+                        readOnly: true,
+                        maxLines: 5,
+                        keyboardType: TextInputType.multiline,
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 16),
+                          hintText: AppLocalizations.of(context)!
+                              .writeDescriptionHere,
+                          hintStyle: const TextStyle(color: Colors.black),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            borderSide: BorderSide.none,
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                        ),
+                      ))
+                  : const SizedBox(),
+              const SizedBox(height: 16),
               Padding(
                   padding: const EdgeInsets.all(16),
                   child: ElevatedButton(
                       style: ElevatedButton.styleFrom(
                           minimumSize: const Size(double.infinity, 50)),
-                      onPressed: () {
-                        !_isLoading ? addStory() : null;
+                      onPressed: () async {
+                        !_isLoading ? await addStory() : null;
                       },
                       child: _isLoading
                           ? const CircularProgressIndicator()
-                          : const Text(
-                              'Add Story',
-                              style: TextStyle(fontSize: 18),
+                          : Text(
+                              AppLocalizations.of(context)!.addStory,
+                              style: const TextStyle(fontSize: 18),
                             )))
             ],
           ),

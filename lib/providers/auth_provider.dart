@@ -16,7 +16,7 @@ class AuthProvider with ChangeNotifier {
   login(String email, String password) async {
     try {
       final response = await dio.post(
-        '$base_url/login',
+        '$baseUrl/login',
         data: {
           'email': email,
           'password': password,
@@ -47,7 +47,7 @@ class AuthProvider with ChangeNotifier {
   register(String name, String email, String password) async {
     try {
       final response = await dio.post(
-        '$base_url/register',
+        '$baseUrl/register',
         data: {
           'name': name,
           'email': email,
